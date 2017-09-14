@@ -273,6 +273,9 @@ def fourier_transform(data, frequency):
 def fourier_inverse(fftValues):
 	return ifft(fftValues)*len(fftValues)
 
+def get_wn(targetFreq, sampleRate=44100):
+	return np.divide(targetFreq, sampleRate / 2.0)
+
 # PARTE MAS IMPORTANTE, ACA SE MODIFICAN LOS NUMEROS DE LOS FILTROS
 def get_filter_limits(filterord_func, filter_type):
 	N = 0 
