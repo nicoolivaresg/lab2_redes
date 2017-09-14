@@ -309,19 +309,22 @@ def filter(fsignal, filter_func, filter_type='low'):
 	z = signal.filtfilt(b, a, fsignal)
 	return z
 
-def filter_pass(filename, fftValues, frequency, fftSamples, times, filter_type):
-	fftButter = filter(fftValues, butterworth, filter_type)
-	fftCheby = filter(fftValues, chebyshev, filter_type)
-	fftChebyInverted = filter(fftValues, chebyshev_inverted, filter_type)
+def filter_pass(filename, data, frequency, times, filter_type):
+	dataButter = filter(data, butterworth, filter_type)
+	dataCheby = filter(data, chebyshev, filter_type)
+	dataChebyInverted = filter(data, chebyshev_inverted, filter_type)
+	fftButter, fftSamples = fourier_transform(dataButter, frequency)
+	fftCheby, _ = fourier_transform(dataCheby, frequency)
+	fftChebyInverted, _ = fourier_transform(dataChebyInverted, frequency)
 
 	filenameButter = filename + "-butter-" + filter_type
 	filenameCheby = filename + "-cheby-" + filter_type
 	filenameChebyInverted = filename + "-cheby_inverted-" + filter_type
 
 	# get spectrograms
-	audio_spectrogram(filenameButter + SPEC, TITLE, YLABEL, XLABEL, fourier_inverse(fftButter), frequency)
-	audio_spectrogram(filenameCheby + SPEC, TITLE, YLABEL, XLABEL, fourier_inverse(fftCheby), frequency)
-	audio_spectrogram(filenameChebyInverted + SPEC, TITLE, YLABEL, XLABEL, fourier_inverse(fftChebyInverted), frequency)
+	audio_spectrogram(filenameButter + SPEC, TITLE, XLABEL, YLABEL, dataButter, frequency)
+	audio_spectrogram(filenameCheby + SPEC, TITLE, XLABEL, YLABEL, dataCheby, frequency)
+	audio_spectrogram(filenameChebyInverted + SPEC, TITLE, XLABEL, YLABEL, dataChebyInverted, frequency)
 
 	# inverted signal graphs plus fourier transform graphs
 	graficar(filenameButter + FFT, TITLE2, YLABEL2, XLABEL2, abs(fftButter), fftSamples)
@@ -349,12 +352,12 @@ def process_file(filename):
 	"""
 	filenameNoExtension = filename[:len(filename)-4]
 	frecuencia, datos, tiempos = load_wav_audio(filename)
-	fftNormalizada, fftSamples = fourier_transform(datos, frecuencia)
+	#fftNormalizada, fftSamples = fourier_transform(datos, frecuencia)
 
 	audio_spectrogram(filenameNoExtension + SPEC, TITLE, XLABEL, YLABEL, datos, frecuencia)
-	filter_pass(filenameNoExtension, fftNormalizada, frecuencia, fftSamples, tiempos, 'low')
-	filter_pass(filenameNoExtension, fftNormalizada, frecuencia, fftSamples, tiempos, 'high')
-	filter_pass(filenameNoExtension, fftNormalizada, frecuencia, fftSamples, tiempos, 'band')
+	filter_pass(filenameNoExtension, datos, frecuencia, tiempos, 'low')
+	filter_pass(filenameNoExtension, datos, frecuencia, tiempos, 'high')
+	filter_pass(filenameNoExtension, datos, frecuencia, tiempos, 'band')
 
 	
 
