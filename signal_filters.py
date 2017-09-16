@@ -10,27 +10,25 @@ import re
 
 
 ####### Constantes y variables globales #######
-TITLE1 = "Gráfico de audio en el tiempo"
-TITLE2 = "Gráfico del audio en el dominio de la frecuencia"
-TITLE3 = "Gráfico del audio en el tiempo usando la transformada inversa"
-TITLE4 = "Gráfico en el dominio de la frecuencia con fft truncada en un 15%"
-TITLE5 = "Gráfico del audio en el tiempo usando la transformada truncada inversa"
+TITLE_SPEC = "Espectrograma de la señal"
+TITLE_FFT = "Gráfico del audio en el dominio de la frecuencia"
+TITLE_IFFT = "Gráfico del audio en el tiempo usando la transformada inversa"
 
-XLABEL1 = "Tiempo [s]"
-XLABEL2 = "Frecuencia [Hz]"
-XLABEL3 = "Tiempo [s]"
-XLABEL4 = "Frecuencia [Hz]"
-XLABEL5 = "Tiempo [s]"
+XLABEL_SPEC = "Tiempo [s]"
+XLABEL_FFT = "Frecuencia [Hz]"
+XLABEL_IFFT = "Tiempo [s]"
 
-YLABEL1 = "Amplitud"
-YLABEL2 = "Amplitud [dB]"
-YLABEL3 = "Amplitud"
-YLABEL4 = "Amplitud [dB]"
-YLABEL5 = "Amplitud"
+YLABEL_SPEC = "Frecuencia [Hz]"
+YLABEL_FFT = "Amplitud [dB]"
+YLABEL_IFFT = "Amplitud"
 
-XLABEL = "Tiempo [s]"
-YLABEL = "Frecuencia [Hz]"
-TITLE = "Espectrograma"
+BUTTERWORTH = " - filtrada por butterworth"
+CHEBYSHEV = " - filtrada por chebyshev"
+CHEBYSHEV_INVERTED = " - filtrada por chebyshev invertido"
+
+HIGHPASS = " (highpass)"
+LOWPASS = " (lowpass)"
+BANDPASS = " (bandpass)"
 
 FFT = "-fft"
 IFFT = "-ifft"
@@ -43,149 +41,28 @@ DPI = 100
 FIGURE_WIDTH = 8
 FIGURE_HEIGHT = 3
 
-figureCounter = 0
-
 CMAP = 'nipy_spectral'
 NOVERLAP = 250
 ########## Definición de Funciones ############
-"""
-# Funcion que grafica los datos en ydata y xdata, y escribe los nombres del eje x, eje y,
-# y el titulo de una figura. Esta figura la guarda en un archivo con el nombre filename.
-# Entrada:
-#	filename	- Nombre del archivo en donde se guarda la figura.
-#	title		- Titulo de la figura.
-#	ylabel		- Etiqueta del eje y.
-#	xlabel		- Etiqueta del eje x.
-#	ydata		- Datos del eje y.
-#	xdata		- Datos del eje X, por defecto es un arreglo vacío que luego se cambia por un
-#				  arreglo desde 0 hasta largo de ydata - 1
-#	color		- Color de la figura en el grafico, por defecto es azul (blue).
-def graficar(filename, title, ylabel, xlabel, ydata, xdata=np.array([]), color='b'):
-	if xdata.size == 0:
-		xdata = np.arange(len(ydata))
 
-	plt.figure(figsize=(FIGURE_WIDTH,FIGURE_HEIGHT), dpi=DPI)
-	plt.plot(xdata, ydata, color)
-	plt.title(title)
-	plt.xlabel(xlabel)
-	plt.ylabel(ylabel)
-	plt.savefig(filename, bbox_inches='tight')
-	plt.clf()
-
-# Funcion que usa el read de scipy.io.wavfile para abrir un archivo .wav y obtener la
-# frecuencia y la informacion del sonido, esta funcion ademas obtiene un vector de tiempo
-# dependiendo de la canidad de datos y la frecuencia del audio.
+# Construye un titulo de un grafico de acuerdo al tipo de filtro que se utiliza y el nombre
+# del filtro utilizado.
 # Entrada:
-# 	filename	- Nombre del archivo por abrir.
+#	title 		- Es una string que posee el comienzo del titulo, se utilizan las constantes
+#				  definidas que comienzan con el prefijo TITLE.
+# 	filter_name	- Nombre del filtro que se utiliza en el grafico, se utilizan las constantes
+#				  definidas que tiene el nombre del filtro (p.ej: BUTTERWORTH)
+#	filter_type	- Define si el tipo de filtro fue high (pasaalto), low (pasabajo) o 
+#				  band (pasabanda).
 # Salida:
-#	frecuencia	- Numero entero con la frecuencia de muestreo del audio en [Hz].
-#	datos		- Arreglo numpy con los datos obtenidos por la lectura del archivo.
-#	tiempos		- Arreglo de floats con el tiempo en segundos para cada dato de 'datos'.
-def openWavFile(filename):
-	frecuencia, datos = read(filename)
-	n = len(datos)
-	Ts = n / frecuencia; # Intervalo de tiempo
-	tiempos = np.linspace(0, Ts, n) # Tiempo en segundos para cada dato de 'datos'
-	return (frecuencia, datos, tiempos)
-
-
-# Funcion que hace uso de la tranformada de fourier, fft() y fftfreq(), para obtener la
-# secuencia de valores de los datos obtenidos del audio y para obtener las frecuencias
-# de muestreo (que depende de la frecuencia del audio y del largo del audio) respectivamente,
-# Entrada:
-#	data		- Datos obtenidos al leer el archivo de audio con scipy.
-#	frequency	- Numero entero con la frecuencia de muestreo del audio en [Hz].
-# Salida:
-#	fftValues	- Transformada de fourier normalizada para los valores en data.
-#	fftSamples	- Frecuencias de muestreo que dependen del largo del arreglo data y la frequency.
-def fourierTransform(data, frequency):
-	n = len(data)
-	Ts = n / frequency
-	fftValues = fft(data) / n # Computacion y normalizacion
-	fftSamples = np.fft.fftfreq(n, 1/frequency)
-
-	return (fftValues, fftSamples)
-# Funcion que trunca en 15% hacia la izquierda y derecha de la frecuencia con mayor amplitud en
-# un arreglo de valores con la transformada de fourier de un audio.
-# Entrada:
-#	fftValues	- Transformada de fourier normalizada para los valores obtenido al leer el archivo
-#				  de audio con scipy.
-# Salida:
-#	fftTruncada	- Transformada de fourier normalizada con los valores que se encuentran fuera del
-#				  margen de 15% seteados en 0.
-def truncateFft(fftValues):
-	n = len(fftValues)
-	maxFreqI = 0
-	maxFreq = 0
-	for i in range(n):
-		if fftValues[i] > maxFreq:
-			maxFreq = fftValues[i]
-			maxFreqI = i
-
-
-	leftI = int(maxFreqI - (n*0.15))
-	rightI = int(maxFreqI + (n*0.15))
-
-	fftTruncada = np.array([0]*n)
-
-	if (leftI < 0):
-		for i in range(rightI):
-			fftTruncada[i] = fftValues[i]
-
-		for j in range(n+leftI, n):
-			fftTruncada[j] = fftValues[j]
-	elif (rightI >= n):
-		for i in range(rightI-n):
-			fftTruncada[i] = fftValues[i]
-
-		for j in range(leftI, n):
-			fftTruncada[j] = fftValues[j]
-	else:
-		for i in range(leftI, rightI):
-			fftTruncada[i] = fftValues[i]
-
-	return fftTruncada
-
-# Funcion que retorna la transformada inversa de fourier de un arreglo de valores, se utiliza para
-# devolver la tranformada y la transformada truncada a una señal de audio.
-# Entrada:
-#	fftValues	- Transformada de fourier normalizada para los valores obtenido al leer el archivo
-#				  de audio con scipy.
-# Salida:
-#	fftValuesInverse - Transformada de fourier inversa denormalizada, se puede utilizar para escribir
-#					   un audio utilizando la funcion write de scipy.io.wavfile
-def fourierInverse(fftValues):
-	return ifft(fftValues)*len(fftValues)
-
-# Abre un archivo .wav y guarda los siguientes graficos en archivos .png:
-# 1- Gráfico de audio en el tiempo
-# 2- Gráfico del audio en el dominio de la frecuencia
-# 3- Gráfico del audio en el tiempo usando la transformada inversa
-# 4- Gráfico en el dominio de la frecuencia con fft truncada en un 15%
-# 5- Gráfico del audio en el tiempo usando la transformada truncada inversa
-# 
-# Tambien usa la inversa truncada para crear y guardar el archivo de audio resultante de
-# esta señal.
-# 
-# Entrada:
-#	filename	- Nombre del archivo con extension '.wav' que se quiere procesar.
-def processFile(filename):
-	global figureCounter
-	figureCounter += 1
-	frecuencia, datos, times = openWavFile(filename)
-	fftNormalizada, fftSamples = fourierTransform(datos, frecuencia)
-	fftNormalizadaInversa = fourierInverse(fftNormalizada)
-
-	#f, t, sxx = spectrogram(datos,frecuencia,nperseg=256)
-	#CHAO plt.pcolormesh(t,f,sxx, cmap=plt.cm.get_cmap('cubehelix'))
-
-	(Pxx, freqs, bins, im) = plt.specgram(datos,Fs=frecuencia, cmap='nipy_spectral', noverlap=250)
-	plt.colorbar(im)
-	plt.show()
-	#write(filename[:len(filename)-4] + "-inversed.wav", frecuencia, fftTruncadaInversa.astype(datos.dtype))
-"""
-
-################################################### NUEVAS FUNCIONES ###################################################
+#	title_full	- El titulo completo del grafico que sera creado.
+def build_graph_title(title, filter_name, filter_type):
+	if filter_type == "high":
+		return title + filter_name + HIGHPASS
+	elif filter_type == "low":
+		return title + filter_name + LOWPASS
+	elif filter_type == "band":
+		return title + filter_name + BANDPASS
 
 # Funcion que grafica los datos en ydata y xdata, y escribe los nombres del eje x, eje y,
 # y el titulo de una figura. Esta figura la guarda en un archivo con el nombre filename.
@@ -211,8 +88,17 @@ def graficar(filename, title, ylabel, xlabel, ydata, xdata=np.array([]), color='
 	plt.savefig(GRAPH_DIR + filename + ".png", bbox_inches='tight')
 	plt.clf()
 
-# ...
-def audio_spectrogram(filename, title, xlabel, ylabel, signal, frequency):
+# Crea un espectrograma de la funcion que se encuentra en 'signal' con frecuencia de muestreo
+# 'frequency' con su barra de colores al lado, esta figura es guardada en un archivo de 
+# extension .png
+# Entrada:
+#	filename	- Nombre del archivo en donde se guarda la figura.
+#	title		- Titulo de la figura.
+#	ylabel		- Etiqueta del eje y.
+#	xlabel		- Etiqueta del eje x.
+#	signal		- Datos de la señal de la que se quiere obtener el espectrograma.
+#	frequency	- Frecuencia de muestreo de la señal.
+def audio_spectrogram(filename, title, ylabel, xlabel, signal, frequency):
 	(Pxx, freqs, bins, im) = plt.specgram(signal,Fs=frequency, cmap=CMAP, noverlap=NOVERLAP)
 	plt.colorbar(im)
 
@@ -273,8 +159,16 @@ def fourier_transform(data, frequency):
 def fourier_inverse(fftValues):
 	return ifft(fftValues)*len(fftValues)
 
+# Transforma una frecuencia (targetFreq) a su equivalente en frecuencia Nyquist, de acuerdo 
+# a la frecuencia de muestreo de la señal, esta frecuencia es por defecto 44100.
+# Entrada:
+#	targetFreq	- Frecuencia de la que se quiere obtener su equivalente en Nyquist frequency.
+#	sampleRate	- Frecuencia de muestreo de la señal (por defecto es 44100).
 def get_wn(targetFreq, sampleRate=44100):
-	return np.divide(targetFreq, sampleRate / 2.0)
+	if(targetFreq > sampleRate):
+		return 1
+	else:
+		return np.divide(targetFreq, sampleRate / 2.0)
 
 # PARTE MAS IMPORTANTE, ACA SE MODIFICAN LOS NUMEROS DE LOS FILTROS
 def get_filter_limits(filterord_func, filter_type):
@@ -307,8 +201,6 @@ def chebyshev_inverted(filter_type):
 
 def filter(fsignal, filter_func, filter_type='low'):
 	(b, a) = filter_func(filter_type)
-	#zi = signal.lfilter_zi(b, a)
-	#z, _ = signal.lfilter(b, a, fsignal, zi=zi*fsignal[0])
 	z = signal.filtfilt(b, a, fsignal)
 	return z
 
@@ -324,24 +216,34 @@ def filter_pass(filename, data, frequency, times, filter_type):
 	filenameCheby = filename + "-cheby-" + filter_type
 	filenameChebyInverted = filename + "-cheby_inverted-" + filter_type
 
+	# build graph titles
+	titleSpecButter = build_graph_title(TITLE_SPEC, BUTTERWORTH, filter_type)
+	titleSpecCheby = build_graph_title(TITLE_SPEC, CHEBYSHEV, filter_type)
+	titleSpecChebyInv = build_graph_title(TITLE_SPEC, CHEBYSHEV_INVERTED, filter_type)
+	titleFFTButter = build_graph_title(TITLE_FFT, BUTTERWORTH, filter_type)
+	titleFFTCheby = build_graph_title(TITLE_FFT, CHEBYSHEV, filter_type)
+	titleFFTChebyInv = build_graph_title(TITLE_FFT, CHEBYSHEV_INVERTED, filter_type)
+	titleIFFTButter = build_graph_title(TITLE_IFFT, BUTTERWORTH, filter_type)
+	titleIFFTCheby = build_graph_title(TITLE_IFFT, CHEBYSHEV, filter_type)
+	titleIFFTChebyInv = build_graph_title(TITLE_IFFT, CHEBYSHEV_INVERTED, filter_type)
+
 	# get spectrograms
-	audio_spectrogram(filenameButter + SPEC, TITLE, XLABEL, YLABEL, dataButter, frequency)
-	audio_spectrogram(filenameCheby + SPEC, TITLE, XLABEL, YLABEL, dataCheby, frequency)
-	audio_spectrogram(filenameChebyInverted + SPEC, TITLE, XLABEL, YLABEL, dataChebyInverted, frequency)
+	audio_spectrogram(filenameButter + SPEC, titleSpecButter, YLABEL_SPEC, XLABEL_SPEC, dataButter, frequency)
+	audio_spectrogram(filenameCheby + SPEC, titleSpecCheby, YLABEL_SPEC, XLABEL_SPEC, dataCheby, frequency)
+	audio_spectrogram(filenameChebyInverted + SPEC, titleSpecChebyInv, YLABEL_SPEC, XLABEL_SPEC, dataChebyInverted, frequency)
 
 	# inverted fourier graphs (basically signals) plus fourier transform graphs
-	graficar(filenameButter + FFT, TITLE2, YLABEL2, XLABEL2, abs(fftButter), fftSamples)
-	graficar(filenameButter + IFFT, TITLE3, YLABEL3, XLABEL3, fourier_inverse(fftButter), times)
-	graficar(filenameCheby + FFT,TITLE2, YLABEL2, XLABEL2, abs(fftCheby), fftSamples)
-	graficar(filenameCheby + IFFT,TITLE3, YLABEL3, XLABEL3, fourier_inverse(fftCheby), times)
-	graficar(filenameChebyInverted + FFT,TITLE2, YLABEL2, XLABEL2, abs(fftChebyInverted), fftSamples)
-	graficar(filenameChebyInverted + IFFT,TITLE3, YLABEL3, XLABEL3, fourier_inverse(fftChebyInverted), times)
+	graficar(filenameButter + FFT, titleFFTButter, YLABEL_FFT, XLABEL_FFT, abs(fftButter), fftSamples)
+	graficar(filenameButter + IFFT, titleIFFTButter, YLABEL_IFFT, XLABEL_IFFT, fourier_inverse(fftButter), times)
+	graficar(filenameCheby + FFT,titleFFTCheby, YLABEL_FFT, XLABEL_FFT, abs(fftCheby), fftSamples)
+	graficar(filenameCheby + IFFT,titleIFFTCheby, YLABEL_IFFT, XLABEL_IFFT, fourier_inverse(fftCheby), times)
+	graficar(filenameChebyInverted + FFT,titleFFTChebyInv, YLABEL_FFT, XLABEL_FFT, abs(fftChebyInverted), fftSamples)
+	graficar(filenameChebyInverted + IFFT,titleIFFTChebyInv, YLABEL_IFFT, XLABEL_IFFT, fourier_inverse(fftChebyInverted), times)
 
 	# save filtered signals back to audio
 	save_wav_audio(filenameButter, frequency, fourier_inverse(fftButter))
 	save_wav_audio(filenameCheby, frequency, fourier_inverse(fftCheby))
 	save_wav_audio(filenameChebyInverted, frequency, fourier_inverse(fftChebyInverted))
-
 
 
 # Abre un archivo .wav y ...
@@ -357,16 +259,10 @@ def process_file(filename):
 	frecuencia, datos, tiempos = load_wav_audio(filename)
 	#fftNormalizada, fftSamples = fourier_transform(datos, frecuencia)
 
-	audio_spectrogram(filenameNoExtension + SPEC, TITLE, XLABEL, YLABEL, datos, frecuencia)
+	audio_spectrogram(filenameNoExtension + SPEC, TITLE_SPEC, XLABEL_SPEC, YLABEL_SPEC, datos, frecuencia)
 	filter_pass(filenameNoExtension, datos, frecuencia, tiempos, 'low')
 	filter_pass(filenameNoExtension, datos, frecuencia, tiempos, 'high')
 	filter_pass(filenameNoExtension, datos, frecuencia, tiempos, 'band')
-
-	
-
-
-################################################# FIN NUEVAS FUNCIONES #################################################
-
 
 ################ Bloque Main ##################
 #process_file("lab1-1.wav")
