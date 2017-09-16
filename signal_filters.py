@@ -70,7 +70,7 @@ def build_graph_title(title, filter_name, filter_type):
 		return title + filter_name + BANDPASS
 
 # Funcion que grafica los datos en ydata y xdata, y escribe los nombres del eje x, eje y,
-# y el titulo de una figura. Esta figura la guarda en un archivo con el nombre filename.
+# y el titulo de una figura. Esta figura la guarda en un archivo con el nombre filename.png.
 # Entrada:
 #	filename	- Nombre del archivo en donde se guarda la figura.
 #	title		- Titulo de la figura.
@@ -95,7 +95,7 @@ def graficar(filename, title, ylabel, xlabel, ydata, xdata=np.array([]), color='
 
 # Crea un espectrograma de la funcion que se encuentra en 'signal' con frecuencia de muestreo
 # 'frequency' con su barra de colores al lado, esta figura es guardada en un archivo de 
-# extension .png
+# extension png (espectrograma.png)
 # Entrada:
 #	filename	- Nombre del archivo en donde se guarda la figura.
 #	title		- Titulo de la figura.
@@ -167,15 +167,36 @@ def fourier_inverse(fftValues):
 # Transforma una frecuencia (targetFreq) a su equivalente en frecuencia Nyquist, de acuerdo 
 # a la frecuencia de muestreo de la señal, esta frecuencia es por defecto 44100.
 # Entrada:
-#	targetFreq	- Frecuencia de la que se quiere obtener su equivalente en Nyquist frequency.
-#	sampleRate	- Frecuencia de muestreo de la señal (por defecto es 44100).
+#	targetFreq		- Frecuencia de la que se quiere obtener su equivalente en Nyquist frequency.
+#	sampleRate		- Frecuencia de muestreo de la señal (por defecto es 44100).
+# Salida:
+# 	nyq_frequency	- Frecuencia transformada a su equivalente en frecuencia Nyquist.
 def get_nyq(targetFreq, sampleRate=44100):
 	if(targetFreq > sampleRate):
 		return 1
 	else:
 		return np.divide(targetFreq, sampleRate / 2.0)
 
-# PARTE MAS IMPORTANTE, ACA SE MODIFICAN LOS NUMEROS DE LOS FILTROS
+# Funcion que obtiene los puntos de cortes para una funcion de filtro. Hace uso de la funcion
+# get_nyq() para obtener los equivalentes de la frecuencias en frecuencia Nyquist.
+# Entrada:
+#	filterord_func	- Funcion que obtiene el orden (N) y los puntos de corte (Wn) de una funcion
+#					  de filtro de acuerdo a las frecuencias de paso de banda y rechazo de banda.
+#					  Estas funciones son de la forma:
+#						filterord_func(wp, ws, gpass, gstop)
+#							wp, ws : Frecuencias del paso de banda y rechazo de banda.
+#							gpass : La perdida maxima en el paso de banda (dB).
+#							gstop : La atenuacion minima en el rechazo de banda (dB).
+#					  De acuerdo a los valores que tienen wp y ws se determina si es que se retorna
+#					  un filtro para pasabajos, pasaaltos o pasabanda.
+#							
+#	filter_type		- Tipo de filtro que se usa (high, low o band)
+# Salida:
+#	N 				- El orden minimo que necesita la funcion de filtro para cumplir con las
+#					  frecuencias de corte dadas.
+#	Wn				- La(s) frecuencia natural (la "frecuencia de 3dB") que usa la funcion de filtro.
+#					  Tambien se puede decir que son los puntos de corte que utiliza la funcion de 
+#					  filtro.
 def get_filter_limits(filterord_func, filter_type):
 	global signalNumber
 	N = 0 
@@ -204,26 +225,69 @@ def get_filter_limits(filterord_func, filter_type):
 		N = 9
 	return (N, Wn)
 
+# Funcion que se utiliza para poder aplicar el filtro butterworth de scipy (scipy.signal.butter),
+# ya sea highpass, lowpass o bandpass, de acuerdo al parametro filter_type. El orden y las 
+# frecuencias de corte se obtienen de la funcion get_filter_limits().
+# Entrada:
+#	filter_type	- Tipo de filtro que se usa (high, low o band)
+# Salida:
+#	b, a		- Numerador (b) y denominador (a) polinomiales del filtro.
 def butterworth(filter_type):
 	(N, Wn) = get_filter_limits(signal.buttord, filter_type)
 	b, a = signal.butter(N, Wn, filter_type)
 	return (b, a)
 
+# Funcion que se utiliza para poder aplicar el filtro chebyshev de scipy (scipy.signal.cheby1),
+# ya sea highpass, lowpass o bandpass, de acuerdo al parametro filter_type. El orden y las 
+# frecuencias de corte se obtienen de la funcion get_filter_limits().
+# Entrada:
+#	filter_type	- Tipo de filtro que se usa (high, low o band)
+# Salida:
+#	b, a		- Numerador (b) y denominador (a) polinomiales del filtro.
 def chebyshev(filter_type):
 	(N, Wn) = get_filter_limits(signal.cheb1ord, filter_type)
 	b, a = signal.cheby1(N, 5, Wn, filter_type)
 	return (b, a)
 
+# Funcion que se utiliza para poder aplicar el filtro chebyshev invertido de scipy 
+# (scipy.signal.cheby2), ya sea highpass, lowpass o bandpass, de acuerdo al parametro
+# filter_type. El orden y las frecuencias de corte se obtienen de la funcion get_filter_limits().
+# Entrada:
+#	filter_type	- Tipo de filtro que se usa (high, low o band)
+# Salida:
+#	b, a		- Numerador (b) y denominador (a) polinomiales del filtro.
 def chebyshev_inverted(filter_type):
 	(N, Wn) = get_filter_limits(signal.cheb2ord, filter_type)
 	b, a = signal.cheby2(N, 40, Wn, filter_type)
 	return (b, a)
 
+# Filtra una señal utilizando la funcion (scipy.signal.filtfilt()) de acuerdo a los parametros
+# entregados.
+# Entrada:
+#	fsignal		- Señal que se quiere filtrar.
+#	filter_func	- Funcion de filtro que se utiliza (butterworth, chebyshev o chebyshev_inverted),
+#				  esta funcion debe retorna los coeficientes polinomiales b y a que se usan para
+#				  filtrar la señal con scipy.signal.filtfilt().
+#	filter_type	- Tipo de filtro que se usa (high, low o band), se le entrega a la funcion 
+#				  filter_func() para que retorne un filtro que sea de este tipo.
+# Salida:
+#	z			- Señal filtrada de acuerdo a filter_func() y de tipo filter_type().
 def filter(fsignal, filter_func, filter_type='low'):
 	(b, a) = filter_func(filter_type)
 	z = signal.filtfilt(b, a, fsignal)
 	return z
 
+# Metodo que filtra la señal entregada en 'data' con los filtros butterworth, chebyshev y 
+# chebyshev invertido para luego obtener la transformada de fourier de cada uno de ellos,
+# graficar el espectrograma de cada uno de ellos, graficar la transformada de fourier y 
+# la inversa de fourier para las señales filtradas, y finalmente guardar la inversa de fourier
+# (las señales filtradas) en un archivo .wav para poder escuchar los resultados de los filtros.
+# Entrada:
+#	filename	- Nombre del archivo (sin extension) de donde se obtiene la señal original.
+#	data		- Datos obtenidos de la lectura del audio.
+# 	frequency 	- Frecuencua obtenida al leer el audio.
+#	times 		- Arreglo de floats con el tiempo en segundos que ocurre cada dato de 'data'
+# 	filter_type	- Tipo de filtro que se usa (high, low o band).
 def filter_pass(filename, data, frequency, times, filter_type):
 	dataButter = filter(data, butterworth, filter_type)
 	dataCheby = filter(data, chebyshev, filter_type)
@@ -266,8 +330,9 @@ def filter_pass(filename, data, frequency, times, filter_type):
 	save_wav_audio(filenameChebyInverted, frequency, fourier_inverse(fftChebyInverted))
 
 
-# Abre un archivo .wav y ...
-# 
+# Abre un archivo .wav y filtra la señal por los filtros butterworth, chebyshev y 
+# chebyshev invertido (para cada uno realiza el highpass, lowpass y bandpass "equivalente").
+# Guarda los resultados obtenidos en las carpetas "audio" y "graph".
 # Entrada:
 #	filename	- Nombre del archivo con extension '.wav' que se quiere procesar.
 def process_file(filename):
@@ -280,8 +345,8 @@ def process_file(filename):
 
 	graficar(filenameNoExtension + "-signal", TITLE_SIGNAL, YLABEL_SIGNAL, XLABEL_SIGNAL, datos, tiempos)
 	audio_spectrogram(filenameNoExtension + SPEC, TITLE_SPEC, XLABEL_SPEC, YLABEL_SPEC, datos, frecuencia)
-	#filter_pass(filenameNoExtension, datos, frecuencia, tiempos, 'low')
-	#filter_pass(filenameNoExtension, datos, frecuencia, tiempos, 'high')
+	filter_pass(filenameNoExtension, datos, frecuencia, tiempos, 'low')
+	filter_pass(filenameNoExtension, datos, frecuencia, tiempos, 'high')
 	filter_pass(filenameNoExtension, datos, frecuencia, tiempos, 'band')
 
 ################ Bloque Main ##################
