@@ -92,6 +92,7 @@ def graficar(filename, title, ylabel, xlabel, ydata, xdata=np.array([]), color='
 	plt.ylabel(ylabel)
 	plt.savefig(GRAPH_DIR + filename + ".png", bbox_inches='tight')
 	plt.clf()
+	plt.close('all')
 
 # Crea un espectrograma de la funcion que se encuentra en 'signal' con frecuencia de muestreo
 # 'frequency' con su barra de colores al lado, esta figura es guardada en un archivo de 
@@ -112,6 +113,7 @@ def audio_spectrogram(filename, title, ylabel, xlabel, signal, frequency):
 	plt.ylabel(ylabel)
 	plt.savefig(GRAPH_DIR + filename + ".png", bbox_inches='tight')
 	plt.clf()
+	plt.close('all')
 
 # Funcion que usa el read de scipy.io.wavfile para abrir un archivo .wav y obtener la
 # frecuencia y la informacion del sonido, esta funcion ademas obtiene un vector de tiempo
@@ -217,7 +219,7 @@ def get_filter_limits(filterord_func, filter_type):
 		elif filter_type == 'high':
 			N, Wn = filterord_func(get_nyq(12000), get_nyq(8000), 3, 40)
 		elif filter_type == 'band':
-			N, Wn = filterord_func([get_nyq(3000), get_nyq(8000)], [get_nyq(1000), get_nyq(10000)], 3, 40)
+			N, Wn = filterord_func([get_nyq(3000), get_nyq(8000)], [get_nyq(800), get_nyq(10200)], 3, 40)
 
 	# Cuando N es mayor que 9, es demasiado grande y no se obtiene nada con el filtro
 	print(N, Wn)
