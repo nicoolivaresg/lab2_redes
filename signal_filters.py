@@ -13,14 +13,17 @@ import re
 TITLE_SPEC = "Espectrograma de la señal"
 TITLE_FFT = "Gráfico del audio en el dominio de la frecuencia"
 TITLE_IFFT = "Gráfico del audio en el tiempo usando la transformada inversa"
+TITLE_SIGNAL = "Gŕafico del audio en el tiempo de la señal original"
 
 XLABEL_SPEC = "Tiempo [s]"
 XLABEL_FFT = "Frecuencia [Hz]"
 XLABEL_IFFT = "Tiempo [s]"
+XLABEL_SIGNAL = "Tiempo [s]"
 
 YLABEL_SPEC = "Frecuencia [Hz]"
 YLABEL_FFT = "Amplitud [dB]"
 YLABEL_IFFT = "Amplitud"
+YLABEL_SIGNAL = "Amplitud"
 
 BUTTERWORTH = " - filtrada por butterworth"
 CHEBYSHEV = " - filtrada por chebyshev"
@@ -43,6 +46,8 @@ FIGURE_HEIGHT = 3
 
 CMAP = 'nipy_spectral'
 NOVERLAP = 250
+
+signalNumber = 0
 ########## Definición de Funciones ############
 
 # Construye un titulo de un grafico de acuerdo al tipo de filtro que se utiliza y el nombre
@@ -164,7 +169,7 @@ def fourier_inverse(fftValues):
 # Entrada:
 #	targetFreq	- Frecuencia de la que se quiere obtener su equivalente en Nyquist frequency.
 #	sampleRate	- Frecuencia de muestreo de la señal (por defecto es 44100).
-def get_wn(targetFreq, sampleRate=44100):
+def get_nyq(targetFreq, sampleRate=44100):
 	if(targetFreq > sampleRate):
 		return 1
 	else:
@@ -172,16 +177,31 @@ def get_wn(targetFreq, sampleRate=44100):
 
 # PARTE MAS IMPORTANTE, ACA SE MODIFICAN LOS NUMEROS DE LOS FILTROS
 def get_filter_limits(filterord_func, filter_type):
+	global signalNumber
 	N = 0 
 	Wn = 0
-	if filter_type == 'low':
-		N, Wn = filterord_func(0.2, 0.5, 3, 40)
-	elif filter_type == 'high':
-		N, Wn = filterord_func(0.5, 0.2, 3, 40)
-	elif filter_type == 'band':
-		N, Wn = filterord_func([0.2, 0.7], [0.1, 0.8], 3, 40)
+	# Señal 1
+	if signalNumber == 1:
+		if filter_type == 'low':
+			N, Wn = filterord_func(get_nyq(1500), get_nyq(5500), 3, 40)
+		elif filter_type == 'high':
+			N, Wn = filterord_func(get_nyq(5000), get_nyq(1000), 3, 40)
+		elif filter_type == 'band':
+			N, Wn = filterord_func([get_nyq(1400), get_nyq(3600)], [get_nyq(200), get_nyq(4800)], 3, 40)
 
+	# Señal 2
+	if signalNumber == 2:
+		if filter_type == 'low':
+			N, Wn = filterord_func(get_nyq(6000), get_nyq(10000), 3, 40)
+		elif filter_type == 'high':
+			N, Wn = filterord_func(get_nyq(12000), get_nyq(8000), 3, 40)
+		elif filter_type == 'band':
+			N, Wn = filterord_func([get_nyq(3000), get_nyq(8000)], [get_nyq(1000), get_nyq(10000)], 3, 40)
+
+	# Cuando N es mayor que 9, es demasiado grande y no se obtiene nada con el filtro
 	print(N, Wn)
+	if N > 9:
+		N = 9
 	return (N, Wn)
 
 def butterworth(filter_type):
@@ -196,7 +216,7 @@ def chebyshev(filter_type):
 
 def chebyshev_inverted(filter_type):
 	(N, Wn) = get_filter_limits(signal.cheb2ord, filter_type)
-	b, a = signal.cheby2(N, 5, Wn, filter_type)
+	b, a = signal.cheby2(N, 40, Wn, filter_type)
 	return (b, a)
 
 def filter(fsignal, filter_func, filter_type='low'):
@@ -257,13 +277,16 @@ def process_file(filename):
 	"""
 	filenameNoExtension = filename[:len(filename)-4]
 	frecuencia, datos, tiempos = load_wav_audio(filename)
-	#fftNormalizada, fftSamples = fourier_transform(datos, frecuencia)
 
+	graficar(filenameNoExtension + "-signal", TITLE_SIGNAL, YLABEL_SIGNAL, XLABEL_SIGNAL, datos, tiempos)
 	audio_spectrogram(filenameNoExtension + SPEC, TITLE_SPEC, XLABEL_SPEC, YLABEL_SPEC, datos, frecuencia)
-	filter_pass(filenameNoExtension, datos, frecuencia, tiempos, 'low')
-	filter_pass(filenameNoExtension, datos, frecuencia, tiempos, 'high')
+	#filter_pass(filenameNoExtension, datos, frecuencia, tiempos, 'low')
+	#filter_pass(filenameNoExtension, datos, frecuencia, tiempos, 'high')
 	filter_pass(filenameNoExtension, datos, frecuencia, tiempos, 'band')
 
 ################ Bloque Main ##################
-#process_file("lab1-1.wav")
+signalNumber = 1
+process_file("lab1-1.wav")
+
+signalNumber = 2
 process_file("lab1-2.wav")
