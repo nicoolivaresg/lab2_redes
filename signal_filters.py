@@ -329,7 +329,7 @@ def filter_pass(filename, data, frequency, times, filter_type):
 	audio_spectrogram(filenameCheby + SPEC, TITLE, XLABEL, YLABEL, dataCheby, frequency)
 	audio_spectrogram(filenameChebyInverted + SPEC, TITLE, XLABEL, YLABEL, dataChebyInverted, frequency)
 
-	# inverted signal graphs plus fourier transform graphs
+	# inverted fourier graphs (basically signals) plus fourier transform graphs
 	graficar(filenameButter + FFT, TITLE2, YLABEL2, XLABEL2, abs(fftButter), fftSamples)
 	graficar(filenameButter + IFFT, TITLE3, YLABEL3, XLABEL3, fourier_inverse(fftButter), times)
 	graficar(filenameCheby + FFT,TITLE2, YLABEL2, XLABEL2, abs(fftCheby), fftSamples)
@@ -339,8 +339,8 @@ def filter_pass(filename, data, frequency, times, filter_type):
 
 	# save filtered signals back to audio
 	save_wav_audio(filenameButter, frequency, fourier_inverse(fftButter))
-	save_wav_audio(filenameCheby, frequency, fourier_inverse(fftButter))
-	save_wav_audio(filenameChebyInverted, frequency, fourier_inverse(fftButter))
+	save_wav_audio(filenameCheby, frequency, fourier_inverse(fftCheby))
+	save_wav_audio(filenameChebyInverted, frequency, fourier_inverse(fftChebyInverted))
 
 
 
